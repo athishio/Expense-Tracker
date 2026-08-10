@@ -31,10 +31,11 @@ def add_expense():
     data = request.get_json()
     print("Received Data:", data)
     save_to_file(data)
-    return jsonify({"status": "success", "message": "Saved!"}
+    return jsonify({"status": "success", "message": "Saved!"})
 @app.route('/get_expenses', methods=['GET'])
 def get_expenses():
     data = load_from_file()
     return jsonify(data)
+
 if __name__ == '__main__':
     app.run(debug=True)
