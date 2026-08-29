@@ -1,4 +1,4 @@
-# Expense Tracker Flask
+# Expense Tracker
 
 A full-stack personal finance and expense tracking web application built with Python (Flask), Vanilla JavaScript, and MongoDB Atlas.
 
