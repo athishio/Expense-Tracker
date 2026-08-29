@@ -65,39 +65,90 @@
         Total Spent: ₹<span id="totalAmount">0</span>
     </h3>
     <script>
+        let localExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+
+        function renderAllExpenses(expenses) {
+            let tableBody = document.getElementById("expenseTable").getElementsByTagName("tbody")[0];
+            tableBody.innerHTML = "";
+            let total = 0;
+            for (let i = 0; i < expenses.length; i++) {
+                let expense = expenses[i];
+                addExpenseToTable(expense.item, expense.amount, expense.date);
+                total += parseFloat(expense.amount || 0);
+            }
+            document.getElementById("totalAmount").innerHTML = total;
+        }
+
         window.onload = function() {
+            // 1. Immediately render from localStorage so data never vanishes
+            if (localExpenses && localExpenses.length > 0) {
+                renderAllExpenses(localExpenses);
+            }
+
+            // 2. Fetch from backend to sync with MongoDB
             fetch('/get_expenses')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error("Network response was not ok");
+                return response.json();
+            })
             .then(data => {
-                let total = 0;
-                for (let i = 0; i < data.length; i++) {
-                    let expense = data[i];
-                    addExpenseToTable(expense.item, expense.amount, expense.date);
-                    total += parseFloat(expense.amount);
+                if (Array.isArray(data) && data.length > 0) {
+                    localExpenses = data;
+                    localStorage.setItem('expenses', JSON.stringify(data));
+                    renderAllExpenses(data);
+                } else if (localExpenses.length > 0) {
+                    // Sync local offline data to backend
+                    localExpenses.forEach(exp => {
+                        fetch('/add_expense', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(exp)
+                        });
+                    });
                 }
-                document.getElementById("totalAmount").innerHTML = total;
+            })
+            .catch(err => {
+                console.log("Using local storage fallback:", err);
             });
         };
+
         function saveExpense() {
-            let item = document.getElementById("desc").value;
-            let price = document.getElementById("amount").value;
+            let item = document.getElementById("desc").value.trim();
+            let price = document.getElementById("amount").value.trim();
             let date = document.getElementById("dateInput").value;
+
+            if (!date) {
+                let today = new Date();
+                date = today.toISOString().split('T')[0];
+            }
+
             if(item === "" || price === "") {
-                alert("Please fill in all details!");
+                alert("Please fill in item name and amount!");
                 return;
             }
-            addExpenseToTable(item, price, date);
-            let currentTotal = parseFloat(document.getElementById("totalAmount").innerHTML);
-            document.getElementById("totalAmount").innerHTML = currentTotal + parseFloat(price);
+
             let expenseData = { item: item, amount: price, date: date };
+
+            // Save locally
+            localExpenses.push(expenseData);
+            localStorage.setItem('expenses', JSON.stringify(localExpenses));
+            
+            // Update UI
+            addExpenseToTable(item, price, date);
+            let currentTotal = parseFloat(document.getElementById("totalAmount").innerHTML) || 0;
+            document.getElementById("totalAmount").innerHTML = currentTotal + parseFloat(price);
+
+            // Send to server
             fetch('/add_expense', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(expenseData)
-            });
+            }).catch(e => console.log("Server sync failed, saved locally:", e));
+
             document.getElementById("desc").value = "";
             document.getElementById("amount").value = "";
         }
+
         function addExpenseToTable(item, price, date) {
             let tableBody = document.getElementById("expenseTable").getElementsByTagName("tbody")[0];
             let newRow = tableBody.insertRow();
@@ -106,7 +157,7 @@
             let cell3 = newRow.insertCell(2);
             cell1.innerHTML = item;
             cell2.innerHTML = "₹" + price;
-            cell3.innerHTML = date;
+            cell3.innerHTML = date || "-";
         }
     </script>
 </body>
