@@ -4,25 +4,25 @@ import os
 
 app = Flask(__name__)
 
-# Connect to MongoDB if MONGODB_URI is provided in environment, otherwise use local JSON file
-MONGODB_URI = os.environ.get("MONGODB_URI")
-db = None
-if MONGODB_URI:
+def get_db():
+    uri = os.environ.get("MONGODB_URI")
+    if not uri:
+        return None, "MONGODB_URI environment variable is not set"
     try:
         from pymongo import MongoClient
-        client = MongoClient(MONGODB_URI)
-        # Use default database from URI, or fall back to 'expense_tracker' database
+        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
         try:
             db = client.get_default_database()
         except Exception:
             db = client["expense_tracker"]
         if db is None:
             db = client["expense_tracker"]
+        return db, None
     except Exception as e:
-        print(f"Failed to connect to MongoDB: {e}")
-        db = None
+        return None, str(e)
 
 def save_to_file(new_expense):
+    db, err = get_db()
     if db is not None:
         try:
             db.expenses.insert_one(dict(new_expense))
@@ -43,6 +43,7 @@ def save_to_file(new_expense):
         json.dump(expenses_list, f, indent=4)
 
 def load_from_file():
+    db, err = get_db()
     if db is not None:
         try:
             return list(db.expenses.find({}, {"_id": 0}))
@@ -74,5 +75,34 @@ def get_expenses():
     data = load_from_file()
     return jsonify(data)
 
+@app.route('/api/status', methods=['GET'])
+def api_status():
+    uri = os.environ.get("MONGODB_URI")
+    if not uri:
+        return jsonify({
+            "mongodb_configured": False,
+            "message": "MONGODB_URI environment variable is NOT set in Vercel."
+        })
+    try:
+        from pymongo import MongoClient
+        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+        client.admin.command('ping')
+        db, _ = get_db()
+        count = db.expenses.count_documents({})
+        return jsonify({
+            "mongodb_configured": True,
+            "mongodb_connected": True,
+            "total_expenses_in_db": count,
+            "message": "MongoDB is successfully connected and working!"
+        })
+    except Exception as e:
+        return jsonify({
+            "mongodb_configured": True,
+            "mongodb_connected": False,
+            "error": str(e),
+            "hint": "Check: 1. Is the password correct? 2. Are special characters in password URL-encoded? 3. Is Network Access set to 0.0.0.0/0?"
+        })
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True)
+
