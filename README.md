@@ -22,8 +22,13 @@ This is a minimal expense tracker designed for simplicity:
    ```
 3. Open `http://localhost:5000` in your browser.
 
-## Deployment Note
+## Persistent Storage (MongoDB Atlas)
 
-The repository includes a `vercel.json` configuration for deploying to Vercel. However, because Vercel's serverless functions use an ephemeral filesystem between invocations, data written to the local `expenses.json` file will not persist reliably across requests or redeployments on the live deployment.
+To persist expenses in production (e.g. on Vercel), the app connects to **MongoDB Atlas** when the `MONGODB_URI` environment variable is present:
 
-For reliable production use, the local JSON file storage should be migrated to a lightweight hosted database (e.g., PostgreSQL, Supabase, or MongoDB) before advertising persistent storage.
+1. Create a free cluster on [MongoDB Atlas](https://www.mongodb.com/atlas).
+2. Create a database user and allow network access from anywhere (`0.0.0.0/0`).
+3. Copy your connection string (`mongodb+srv://<username>:<password>@cluster0.../expense_tracker?retryWrites=true&w=majority`).
+4. Set `MONGODB_URI` in your Vercel Project Settings under **Settings > Environment Variables**.
+
+*If `MONGODB_URI` is not set (e.g. during offline local development), the server automatically falls back to storing entries in `expenses.json`.*
