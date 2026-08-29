@@ -2,6 +2,8 @@
 
 A full-stack personal finance and expense tracking web application built with Python (Flask), Vanilla JavaScript, and MongoDB Atlas.
 
+🔗 **Live Demo:** [expensetracker-athish.vercel.app](https://expensetracker-athish.vercel.app)
+
 ## Features
 
 - **Real-Time Expense Tracking**: Log expenses instantly with item name, amount, and date.
